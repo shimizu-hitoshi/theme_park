@@ -8,11 +8,11 @@ Created on Mon Jan 21 20:22:55 2019
 import itertools
 import set_park
 # import sim_park
-from sim_park import SimPark
-from sim_park import sim_park
+from myenv.sim_park import SimPark
+from myenv.sim_park import sim_park
 #import estimate_set
 from datetime import datetime
-import os, sys, shutil
+import os, sys, shutil, time
 import numpy as np
 #from copy_figure import copy_figure
 import random
@@ -644,20 +644,29 @@ def sim_optuna(ddirs,GAdir, config):
         pickle.dump(D, fp)
 
 def test_class_function():
-    configfn = "config_normal.ini"
+    # configfn = "config_normal.ini"
+    configfn = "config.ini"
     config = configparser.ConfigParser()
     config.read(configfn)
     dependency = Graph(5)
 
-    # class
-    sim = SimPark("data/N1000it0", "results/tmp_class", config)
-    sim.simulate(dependency)
-    sim.saveLog()
-    print(sim.evaluate())
+    dirs = glob.glob("data/beta/N?000it0")
+    for dd in dirs[:3]:
+        print(dd)
+        # class
+        # sim = SimPark("data/beta/N1000it0", "results/tmp_class", config)
+        dname = dd.split("/")[-1]
+        os.makedirs("results/tmp_class/%s"%dname, exist_ok=True)
+        sim = SimPark("data/beta/%s"%dname, "results/tmp_class/%s"%dname, config)
+        sim.simulate(dependency)
+        # time.sleep(1)
+        sim.saveLog()
+        print(sim.evaluate())
 
-    # function
-    result = sim_park("data/N1000it0", "results/tmp_function", config, dependency)
-    print(result[-1])
+        # function
+        os.makedirs("results/tmp_function/%s"%dname, exist_ok=True)
+        result = sim_park("data/beta/%s"%dname, "results/tmp_function/%s"%dname, config, dependency)
+        print(result[-1])
 
 def run_sim_replay_perm(exe_flg=False):
     configfn = "config_normal.ini"
@@ -717,8 +726,8 @@ if __name__ == '__main__':
     # run_sim_replay_GA()
     # sys.exit()
 
-    # test_class_function()
-    # sys.exit()
+    test_class_function()
+    sys.exit()
 
     configfn = "config.ini"
     # configfn = "config_normal.ini"
@@ -743,7 +752,6 @@ if __name__ == '__main__':
     # ddirs = glob.glob("data/beta/N?000it?") # 許容限界モデル
     # ddirs = glob.glob("data/beta/N?000it0") # 許容限界モデル
     # run_sim(config, ddirs)
-
     # ddirs = glob.glob("data/beta/N*it0") # 本当はこっちを使いたいけど
     # ddirs = glob.glob("results/normal/N?000it?") # GAの実験をやった，これはit0しかない
     # ddirs = glob.glob("results/normal10/N?000it?") # 共有計算機でGAの実験をやった，これをベースにする

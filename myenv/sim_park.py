@@ -34,16 +34,22 @@ def rand_normal(mu, sigma):
         ret = np.random.normal(mu,sigma)
     return ret
 
-def check_dependency(i,hist,dependency):
-    for h in hist:
-        if h in dependency.graph[i]: # 後から乗るべきアトラクションに先に乗っていたら
-            return False # 選ばない
-    return True # OK
+# def check_dependency(i,hist,dependency):
+#     for h in hist:
+#         # if h in dependency.graph[i]: # 後から乗るべきアトラクションに先に乗っていたら
+#         if h in dependency[i]: # ただのdict->listに変更
+#             return False # 選ばない
+#     return True # OK
 
-def check_dependency2(i,hist,dependency):
-    for j in dependency.graph[i]:
-        if j not in hist: # 先に乗るべきアトラクションに乗っていなかったら
-            return False # 選ばない
+# def check_dependency2(i,hist,dependency):
+#     for j in dependency.graph[i]:
+#         if j not in hist: # 先に乗るべきアトラクションに乗っていなかったら
+#             return False # 選ばない
+#     return True # OK
+
+def check_dependency3(i,hist,dependency):
+    if i in dependency: # ただのlistに変更
+        return False # 選ばない
     return True # OK
 
 
@@ -160,7 +166,8 @@ class   Guest:
             if self.alpha_hat[idx] > 0:
                 self.tired = False
             # if not check_dependency(i,self.hist,dependency): # 制約対象
-            if not check_dependency2(i,self.hist,dependency): # 制約対象
+            # if not check_dependency2(i,self.hist,dependency): # 制約対象
+            if not check_dependency3(i,self.hist,dependency): # 制約対象
                 p = 0
                 # break
             elif attractions[i].remains <= len(attractions[i].queue): # 残席なし
@@ -281,10 +288,11 @@ class LogWriter:
                 w.writerow(line)
 
 class SimPark:
-    def __init__(self, ddir, logdir, config):
+    # def __init__(self, ddir, logdir, config):
+    def __init__(self, ddir, config):
         self.mode = config['SIMULATION']['mode']
         self.max_iteration = config.getint('SIMULATION', 'max_iteration')
-        self.logdir = logdir
+        # self.logdir = logdir
         self.ddir = ddir
 
         # ファイル読み込み
@@ -292,8 +300,13 @@ class SimPark:
         self.attractions = mk_attraction("%s/attraction.csv"%ddir)
         self.guest_json  = json.load(open("%s/guest.json"%ddir))
 
-    def reset(self, dependency):
-        self.dependency = dependency
+    def set_logdir(self, logdir):
+        self.logdir = logdir
+
+    # def reset(self, dependency):
+    def reset(self):
+        self.dependency = {}
+        # self.dependency = dependency
         np.random.seed(0)    #config グループ作成など
         self.nTime = 1           #現在時刻
 
@@ -321,8 +334,13 @@ class SimPark:
         self.totalQueue = 0
         self.totalInpark = 0
 
-    def simulate(self, dependency):
-        self.reset(dependency)
+    def simulate(self):
+    # def simulate(self, dependency):
+        """
+        最初から最後までシミュレーションを実行する
+        """
+        # self.reset(dependency)
+        self.reset()
         for t in range(1, self.max_iteration+1):
             self.nTime = t
             # print(self.nTime)
@@ -330,6 +348,22 @@ class SimPark:
                 break
             self.iterate()
             self.appendLog()
+
+    def set_restriction(self, action):
+        """
+        後で実装
+        """
+        self.dependency = []
+        # self.action = action
+        for i, a in enumerate(action):
+            if a == 1:
+                self.dependency.append(i+1) # アトラクションIDは1はじまり
+        return None
+
+    def step(self, interval):
+        for t in range(interval):
+            self.iterate()
+        return None
 
     def iterate(self):
         self.active.extend([g for g in self.born if self.guests[g].born <= self.nTime ])
@@ -404,6 +438,15 @@ class SimPark:
                 
         self.active  = [] # 本来，iterateの冒頭に書くべきでは？
 
+    def _get_state(self):
+        ret = []
+        cnt = 0 # 行列の人数
+        for a in sorted(self.attractions.keys()):
+            cnt+=len(self.attractions[a].queue)
+            ret.append(len(self.attractions[a].queue))
+        ret.extend([self.nTime, len(self.born), len(self.move),cnt, len(self.ride), len(self.wait), len(self.dead)])
+        return np.array(ret)
+
     def appendLog(self):
         # 以下，ログ出力のための処理
         cnt = 0 # 行列の人数
@@ -437,256 +480,8 @@ class SimPark:
         mean_surplus = np.mean(list_surplus)
         return mean_surplus
 
-
-def sim_park(ddir, logdir, config, dependency={}):
-    # config = configparser.ConfigParser()
-    # config.read(configfn)
-    mode = config['SIMULATION']['mode']
-    # ddir = config['SIMULATION']['ddir']
-    # logdir = config['SIMULATION']['logdir']
-    max_iteration = config.getint('SIMULATION', 'max_iteration')
-    # mode="normal"
-    # dependency={}
-
-    distance_matrix_fn = "%s/distance.csv"%ddir
-    distance_matrix = np.loadtxt(distance_matrix_fn, delimiter=",")
-    
-    #####Configs###########################
-    np.random.seed(0)    #config グループ作成など
-    # np.random.seed(0)
-    global  nTime           #現在時刻
-
-    attractions = mk_attraction("%s/attraction.csv"%ddir)
-
-    guests      = {}
-    guestfn = "%s/guest.json"%ddir
-    fp  = open(guestfn)
-    jsdata  = json.load(fp)
-    fp.close()
-    for i, d in enumerate(jsdata):
-        # g   = Guest(d["idx"])
-        g   = Guest(d)
-        # for k in d:
-        #     g.__dict__[k]   = d[k]
-        guests[g.idx] = g
-
-    N = len(guests)
-    
-    if flg_log:
-        fp = {}
-        LOGS    = {}
-        fp["queue"] = open(logdir+"/queue_length.csv", "w")
-        # fp["queue"] = open(logdir+"/queue_length.csv", "w", newline='')
-        LOGS["queue"] = csv.writer(fp["queue"])
-        line    = ["time"]
-        for a in sorted(attractions.keys()):
-            line.append("Attraction"+str(a))
-        LOGS["queue"].writerow(line)
-
-        fp["wait"] = open(logdir+"/wait_time.csv", "w")
-        # fp["wait"] = open(logdir+"/wait_time.csv", "w", newline='')
-        LOGS["wait"] = csv.writer(fp["wait"])
-        line    = ["time"]
-        for a in sorted(attractions.keys()):
-            line.append("Attraction"+str(a))
-        LOGS["wait"].writerow(line)
-
-        fp["aCnt"] = open(logdir+"/attraction_cnt.csv", "w")
-        # fp["aCnt"] = open(logdir+"/attraction_cnt.csv", "w", newline='')
-        LOGS["aCnt"] = csv.writer(fp["aCnt"])
-        line    = ["time"]
-        for a in sorted(attractions.keys()):
-            line.append("Attraction"+str(a))
-        LOGS["aCnt"].writerow(line)
-
-        fp["state"] = open(logdir+"/state.csv", "w")
-        # fp["state"] = open(logdir+"/state.csv", "w", newline='')
-        LOGS["state"] = csv.writer(fp["state"])
-        line    = ["time", "no enter", "move", "queue", "ride", "wait", "exit"]
-        LOGS["state"].writerow(line)
-    
-    born    = guests.keys()
-    active  = []
-    wait    = []
-    move    = []
-    ride    = []
-    dead    = []
-    totalWait = 0
-    totalQueue = 0
-    totalInpark = 0
-
-    for nTime in range(1, max_iteration+1):
-        if len(dead) == N:
-            break
-        #入場処理
-        active.extend([g for g in born if guests[g].born <= nTime ])
-        born = [g for g in born if not guests[g].born <= nTime ]
-    
-        #アトラクション更新
-        for a in attractions:
-            ride = attractions[a].update(guests, ride, max_iteration, nTime)
-#        print(ride)
-    
-        #待機状態の人をアクティブに
-        for g in wait:
-            guests[g].wait -= 1
-            if(guests[g].wait <=0):
-                active.append(g)
-        wait    = [g for g in wait if guests[g].wait>0]
-        
-        #移動状態の人の処理
-        np.random.shuffle(move)
-        for g in move:
-            guests[g].move -= 1
-            if(guests[g].move <=0):
-                att = guests[g].dest
-                guests[g].pos   = att
-                # if guests[g].pos == 0 and len(guests[g].wish)==0:
-                # if guests[g].pos == 0 and guests[g].num_wish == guests[g].exp:
-                #     guests[g].dead = nTime
-                #     dead.append(g)
-                #     continue
-
-                # wish達成とtired状態の判定を統合しました20200424
-                if guests[g].check_exit(attractions):
-                    guests[g].dead = nTime
-                    dead.append(g)
-                    continue
-                ##########DEBUG 全て並ぶ##########
-                attractions[att].queue.append(g)
-                guests[g].q_start = copy.deepcopy( nTime )
-                guests[g].logs.append([nTime, "queueing", att])
-                continue
-                ##################################
-                # #来たけど乗れない
-                # if(len(attractions[att].queue)>=attractions[att].remains):
-                #     guests[g].wait  =1
-                #     wait.append(g)
-                #     guests[g].logs.append([nTime, "retire", att])
-                # else:
-                #     attractions[att].queue.append(g)
-                #     guests[g].logs.append([nTime, "queueing", att])
-        move    = [g for g in move if guests[g].move>0]
-    
-    
-        #体験中の人の処理
-        for g in ride:
-            guests[g].ride  -= 1
-            if(guests[g].ride <=0):
-#                guests[g].wait  =1
-#                wait.append(g)
-                active.append(g)
-    #            
-        ride    = [g for g in ride if guests[g].ride>0]
-    #
-        #ゲストの次のアクション策定(並列処理予定)
-#        dead.extend([g for g in active if (guests[g].dead <= nTime or guests[g].exp >= guests[g].num_wish)] )
-#        active = [g for g in active if not (guests[g].dead <= nTime or guests[g].exp >= guests[g].num_wish)]
-#        dead.extend([g for g in active if (guests[g].exp >= guests[g].num_wish)] )
-#        active = [g for g in active if not (guests[g].exp >= guests[g].num_wish)]
-        active = [g for g in active if not (guests[g].pos == 0 and guests[g].num_wish==0)]
-        # active = [g for g in active if not (guests[g].pos == 0 and len(guests[g].wish)==0)]
-    
-        for g in active:
-            att = guests[g].selAttraction(attractions, mode, dependency)
-            # att = selAttraction(guests[g], attractions, mode, dependency)
-            # move time from next att
-            if att is None:
-                tm = None
-            else:
-                tm = distance_matrix[guests[g].pos, att]
-            #乗りたいアトラクションがなければ1〜30分休憩
-            if(att == None):
-                r = np.random.randint(1, 30+1)
-                guests[g].wait  = r
-                wait.append(g)
-            else:
-                guests[g].move  = np.random.randint(tm+1)
-                guests[g].dest  = att
-                move.append(g)
-                guests[g].logs.append([nTime, "move", guests[g].pos, att])
-                
-        active  = []
-        cnt = 0 # 行列の人数
-        qlen    = [nTime]
-        wTime   = [nTime]
-        aCnt = [nTime] # 各アトラクションを体験した人数
-        for a in sorted(attractions.keys()):
-            cnt+=len(attractions[a].queue)
-            qlen.append(len(attractions[a].queue))
-            wTime.append(attractions[a].wait)
-            aCnt.append(attractions[a].cnt)
-
-        totalWait += len(wait)
-        totalQueue += cnt
-        totalInpark += len(move) + cnt + len(ride) + len(wait) # 
-
-        if flg_log:
-            LOGS["queue"].writerow(qlen)
-            LOGS["wait"].writerow(wTime)
-            LOGS["aCnt"].writerow(aCnt)
-
-            line    = [nTime, len(born), len(move),cnt, len(ride), len(wait), len(dead)]
-            LOGS["state"].writerow(line)
-        if flg_debug : print( nTime, "no born", len(born), len(active), "wait", len(wait), "exit",len(dead), "queue", cnt, "move", len(move), "ride", len(ride) )
-    
-    if flg_log:
-        for k, _fp in fp.items():
-            _fp.close()
-    
-# 実行時間短縮のために，グラフ保存を抑制
-    # ifn = "%s/wait_time.csv"%logdir
-    # ofn = "%s/wait_time.png"%logdir
-    # plotter.plot_data_n(ofn, ifn, N, tick_interval=1)
-
-    # ifn = "%s/state.csv"%logdir
-    # ofn = "%s/state.png"%logdir
-    # plotter.cum_plot(ofn, ifn, tick_interval=1)
-
-    shutil.copy2(__file__, logdir)
-    
-#     来園者の履歴を画面表示
-    list_exp = np.array( [ v.exp for k,v in sorted( guests.items() )] )
-    list_util = np.array( [ v.util for k,v in sorted( guests.items() )] )
-    list_surplus = np.array( [ v.surplus for k,v in sorted( guests.items() )] )
-
-
-
-#     list_exp = []
-#     list_util = []
-#     # total_util = 0
-# #    list_wait = []
-
-#     for g in sorted(guests.keys()):
-#         list_exp.append( guests[g].exp )
-#         list_util.append( guests[g].util )
-#         # total_util += guests[g].util
-# #        print(guests[g].exp)
-# #    ofn = "%s/hist_exp.png"%logdir
-# #    plotter.hist_data(ofn,list_exp)
-
-    np.savetxt("%s/list_exp.txt"%logdir, list_exp ,fmt="%d")
-    np.savetxt("%s/list_util.txt"%logdir, list_util )
-
-# 実行時間短縮のために，詳細ログ出力を抑制
-    if flg_log:
-        ofn = "%s/result.json"%logdir
-        saveResult(ofn, guests)
-#    ana_sim.ana_sim(logdir)
-
-    total_exp = np.sum(list_exp)
-    mean_exp = np.mean(list_exp) # 20190705 result.json集計と比べて過大，バグかな？
-    ret_queue = 1.0 * totalQueue / N
-    mean_wait = 1.0 * totalWait / N
-    mean_Inpark = 1.0 * totalInpark / N
-    mean_util = np.mean(list_util)
-    mean_surplus = np.mean(list_surplus)
-    # mean_util = total_util / N
-#    print("average of # exp : %s"%np.mean(list_exp))
-#    print("average of wait : %s"%(totalWait / N))
-    return total_exp, mean_exp, ret_queue, mean_wait, mean_Inpark, nTime, mean_util, mean_surplus
-
 if __name__ == '__main__':
+    park = SimPark(ddir, config)
     ddir = "data"
     datehead = datetime.today().strftime("%Y%m%d_%H%M%S")
     logdir  = "results/%s"%datehead
@@ -694,5 +489,5 @@ if __name__ == '__main__':
     #    os.mkdir(logdir, 0755)
         os.mkdir(logdir)
 
-    sim_park(ddir, logdir, [0] * 5)
+    # sim_park(ddir, logdir, [0] * 5)
 
