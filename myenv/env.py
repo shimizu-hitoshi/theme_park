@@ -12,7 +12,7 @@ sys.path.append('../')
 import copy
 from myenv.sim_park import SimPark
 
-DEBUG = True # False # True # False # True # False
+DEBUG = False # True # False # True # False # True # False # True # False
 
 class SimEnv(gym.Env):
     metadata = {'render.modes': ['human']}
@@ -47,10 +47,10 @@ class SimEnv(gym.Env):
         # reward = self._get_reward(self.edge_state)
         # sum_pop = np.sum(self.edge_state) * self.interval / self.num_agents # 累積すると平均移動時間
 
-        reward = self._get_reward()
-        print("reward",reward)
+        # reward = self._get_reward()
+        reward = 0
+        # print("reward",reward)
         # self.episode_reward += sum_pop
-        self.episode_reward += reward
         # print("CURRENT", self.cur_time, action, sum_pop, self.T_open[self.num_step], reward, self.episode_reward)
         # if DEBUG: print("CURRENT", self.env_id, self.cur_time, action, sum_pop, reward, self.episode_reward)
         with open(self.resdir + "/current_log.txt", "a") as f:
@@ -61,6 +61,9 @@ class SimEnv(gym.Env):
         # travel_time = self.mk_travel_open()
         info = {}
         if done:
+            reward = self._get_reward() # エピソード終了時にのみ0に上書き
+            self.episode_reward += reward
+            print("last_reward", reward)
             # agentid, travel_time = self._goal_time_all() # 歩行者の移動速度リストを取得
             info = {
                     "episode": {
@@ -69,6 +72,7 @@ class SimEnv(gym.Env):
                     "events": self.event_history,
                     "env_id":self.env_id,
                     # "travel_time":travel_time,
+                    "surplus":self.park.evaluate()
                     # "agentid":agentid
                     }
             # print("info",info)
@@ -104,11 +108,13 @@ class SimEnv(gym.Env):
     def close(self):
         pass
 
-    def seed(self, seed=None, env_id=None, datadirs=None, config=None, R_base=(None, None)):
+    # def seed(self, seed=None, env_id=None, datadirs=None, config=None, R_base=(None, None)):
+    def seed(self, seed=None, env_id=None, datadirs=None, config=None, R_base=None):
         self.park = SimPark(datadirs, config)
 
-        print(R_base)
-        self.T_open, self.travel_open = R_base
+        if DEBUG: print("R_base", R_base)
+        # self.T_open, self.travel_open = R_base
+        self.T_open = R_base
         # print("T_open @ seed",self.T_open)
         # print("travel_open @ seed",self.travel_open)
         # training_targets = dict_target["training"]
@@ -218,14 +224,15 @@ class SimEnv(gym.Env):
         return self.actions[action,:]
 
     def _get_reward(self):# based on surplus
-        print("max_step", self.max_step, "num_step", self.num_step)
-        # if self.travel_open is None:
-        #     return 0
-        if self.max_step > self.num_step+1:
-            return 0 # reward only last step
+        print("max_step", self.max_step, "num_step", self.num_step, "T_open", self.T_open)
+        if self.T_open is None:
+            return 0
+        # if self.max_step > self.num_step+1:
+        #     return 0 # reward only last step
         else:
             surplus = self.park.evaluate()
-            reward = (surplus - self.travel_open) / self.travel_open
+            reward = (surplus - self.T_open) / self.T_open
+            if DEBUG: print("positive reward", reward)
             return reward # 上限を1にしなくてもよいかも
         # agentid, travel_time = self._goal_time_all()
         # # print(agentid, travel_time)
@@ -275,7 +282,7 @@ class SimEnv(gym.Env):
         # cur_obs = np.append(self.edge_state , self.goal_state )
         # cur_obs = np.append(cur_obs , self.navi_state )
         cur_obs = self.park._get_state()
-        print("cur_obs",cur_obs)
+        if DEBUG: print("cur_obs",cur_obs)
         return np.append(obs, cur_obs) # 右端に追加
 
     # def set_datadir(self, datadir):

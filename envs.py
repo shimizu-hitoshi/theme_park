@@ -17,115 +17,8 @@ import datetime
 
 DEBUG = False # True # False # True # False
 
-# class Curriculum:
-#     def run(self, args):
-#         config = configparser.ConfigParser()
-#         config.read(args.configfn)
-#         test_env = Environment(args, "test")
-        
-#         # training_targets = list( np.loadtxt( config['TRAINING']['training_target'] , dtype=int ) )
-#         # shelters = np.loadtxt( config['SIMULATION']['actionfn'] , dtype=int )
-#         # edgedir = config['SIMULATION']['edgedir'] # datadir の代用
-#         # edges = Edge(edgedir) # 暫定
-#         dt = datetime.datetime.now() # 現在時刻->実験開始時刻をログ出力するため
-#         print(config['CURRICULUM'])
-#         outputfn = config['CURRICULUM']['outputfn'] # model file name
-#         resdir = config['CURRICULUM']['resdir']
-#         if not os.path.exists(resdir):
-#             os.makedirs(resdir)
-#         print(resdir)
-
-#         # 設定を保存
-#         shutil.copy2(args.configfn, resdir)
-#         with open(resdir + "/args.txt", "w") as f:
-#             json.dump(args.__dict__, f, indent=2)
-
-#         dict_best_model = {}
-
-#         dict_model = {}
-#         if args.checkpoint:
-#             # モデルを読み込む処理
-#             ifns = glob.glob(args.inputfn + "_*")
-#             for ifn in ifns:
-#                 print("loading: ",ifn)
-#                 node_id = int( ifn.split("_")[-1] )
-#                 actor_critic = load_model(test_env.n_in, test_env.n_out, ifn).to(test_env.device)
-#                 actor_critic.set_edges(edges)
-#                 dict_model[node_id] = actor_critic
-
-#         # sys.exit()
-#         best_score, R_base = test_env.test(dict_model) # ルールベースの評価値を取得
-#         T_open, travel_time = R_base
-#         print("初回のスコア", best_score, T_open, np.mean(travel_time))
-#         R_base = (T_open , travel_time) # train環境に入力するため
-#         with open(resdir + "/Curriculum_log.txt", "a") as f:
-#             f.write("Curriculum start: " + dt.strftime('%Y年%m月%d日 %H:%M:%S') + "\n")
-#             f.write("initial score:\t{:}\n".format(best_score))
-#             print("initial score:\t{:}\n".format(best_score))
-
-#         if args.test: # testモードなら，以下の学習はしない
-#             sys.exit()
-
-#         dict_best_model = copy.deepcopy(dict_model)
-#         # tmp_fixed = copy.deepcopy(dict_target["training"])
-#         loop_i = 0 # カリキュラムのループカウンタ
-#         NG_target = [] # scoreが改善しなかったtargetリスト
-#         while True:
-#             loop_i += 1
-#             flg_update = False
-#             for training_target in training_targets:
-#                 if training_target in NG_target: # 改善しなかった対象は省略
-#                     continue
-#                 # 突然エラー出たので，毎回インスタンス生成するように修正
-#                 train_env = Environment(args, "train", R_base, loop_i)
-#                 # dict_target["training"] = [training_target]
-#                 # dict_target["fixed"] = tmp_fixed
-#                 # dict_target["fixed"].remove(training_target)
-#                 dict_model = copy.deepcopy(dict_best_model)
-#                 # targetがまだデフォルト制御なら，新規にエージェントを生成する
-#                 if dict_best_model[training_target].__class__.__name__ == "FixControler":
-#                     dict_model[training_target] = ActorCritic(train_env.n_in, train_env.n_out)
-#                     dict_model[training_target].set_edges(edges)
-#                     if DEBUG: print(training_target, "番目のエージェント生成")
-
-#                 dict_model = train_env.train(dict_model, config, training_target)
-#                 test_env = Environment(args, "test")
-#                 tmp_score, _ = test_env.test(dict_model)
-#                 with open(resdir + "/Curriculum_log.txt", "a") as f:
-#                     f.write("{:}\t{:}\t{:}\t{:}\n".format(loop_i, train_env.NUM_EPISODES, training_target, tmp_score))
-#                     print(loop_i, training_target, tmp_score)
-
-#                 if tmp_score < best_score: # scoreは移動時間なので小さいほどよい
-#                     best_score = copy.deepcopy(tmp_score)
-#                     # for node_id, model in dict_model.items(): # まとめてコピーしたらダメなのか？
-#                     #     dict_best_model[node_id] = copy.deepcopy(model)
-#                     dict_best_model = copy.deepcopy(dict_model)
-#                     flg_update = True
-#                     NG_target = []
-#                     print(resdir + '/' + outputfn + "_%s"%training_target +"をセーブする")
-#                     save_model(dict_model[training_target], resdir + '/' + outputfn + "_%s"%training_target )
-#                 else: # 性能を更新できなかったら，戻す
-#                     dict_model[training_target] = dict_best_model[training_target]
-#                     NG_target.append(training_target)
-#             if args.save: # 毎回モデルを保存
-#                 # save_model(actor_critic, resdir + '/' + outputfn)
-#                 for node_id, model in dict_best_model.items():
-#                     if model.__class__.__name__ == "FixControler":
-#                         print("node", node_id, " is FixControler")
-#                     else:
-#                         print(resdir + '/' + outputfn + "_%s"%node_id +"をセーブする")
-#                         save_model(model, resdir + '/' + outputfn + "_%s"%node_id )
-#             if not flg_update: # 1個もtargetが更新されなかったら終了
-#                 break
-#         # 終了
-#         with open(resdir + "/Curriculum_log.txt", "a") as f:
-#             f.write("Curriculum 正常終了: " + dt.strftime('%Y年%m月%d日 %H:%M:%S') + "\n")
-#             f.write("final score:\t{:}\n".format(best_score))
-#             print("ここでCurriculum終了")
-#             print("initial score:\t{:}\n".format(best_score))
-
 class Environment:
-    def __init__(self, args, flg_test=False):
+    def __init__(self, args, flg_test=False, S_open=None):
         config = configparser.ConfigParser()
         config.read(args.configfn)
         self.config = config
@@ -172,7 +65,8 @@ class Environment:
         # self.envs = make_vec_envs(args.env_name, args.seed, self.NUM_PARALLEL, self.device, self.datadirs, config, R_base)
         # print(args.env_name, args.seed, self.NUM_PARALLEL, self.device, self.datadirs[0], config, R_base)
         # self.envs = make_vec_envs(args.env_name, args.seed, self.NUM_PARALLEL, self.device, self.datadirs[0], config, R_base)
-        self.envs = make_vec_envs(args.env_name, args.seed, self.NUM_PARALLEL, self.device, self.datadirs[0], config)
+        # self.envs = make_vec_envs(args.env_name, args.seed, self.NUM_PARALLEL, self.device, self.datadirs[0], config)
+        self.envs = make_vec_envs(args.env_name, args.seed, self.NUM_PARALLEL, self.device, self.datadirs[0], config, S_open)
         self.n_in  = self.envs.observation_space.shape[0]
         self.n_out = self.envs.action_space.n
         self.obs_shape       = self.n_in
@@ -187,7 +81,7 @@ class Environment:
         # actor_critics = []
         # local_brains = []
         # rollouts = []
-        print(self.config)
+        if DEBUG: print(self.config)
         actor_critic = ActorCritic(self.n_in, self.n_out)
         global_brain = Brain(actor_critic, self.config)
         rollout = RolloutStorage(self.NUM_ADVANCED_STEP, self.NUM_PARALLEL, self.obs_shape, self.device)
@@ -305,10 +199,10 @@ class Environment:
                 #     # print(actor_critic.__class__.__name__)
                 #     tmp_action = actor_critic.act_greedy(obs) # ここでアクション決めて
                 #     action[:,i] = tmp_action.squeeze()
-                print("step",step, "obs",obs, "action",action)
+                if DEBUG: print("step",step, "obs",obs, "action",action)
             obs, reward, done, infos = self.envs.step(action) # これで時間を進める
             # episode_rewards += reward
-            T_open.append(reward.item())
+            # T_open.append(reward.item())
             # if done then clean the history of observation
             masks = torch.FloatTensor([[0.0] if done_ else [1.0] for done_ in done])
             if DEBUG: print(masks)
@@ -332,8 +226,8 @@ class Environment:
                         f.write("{:}\n".format(event))
                         if DEBUG: print(event)
                         # episode[i] += 1
-            if 'travel_time' in infos[0]: # test()では１並列前提
-                travel_time = infos[0]['travel_time']
+            if 'surplus' in infos[0]: # test()では１並列前提
+                surplus = infos[0]['surplus']
 
             # final_rewards *= masks
             # final_rewards += (1-masks) * episode_rewards
@@ -348,9 +242,12 @@ class Environment:
             # 逆に，テスト結果をどこかに保存する必要がある
 
         print("ここでtest終了")
+        # print(surplus)
         # return np.mean(travel_time), (T_open, travel_time)
-        print(T_open)
-        return T_open
+        # surplus = self.envs[0].park.evaluate()
+        return surplus
+        # print(T_open)
+        # return T_open
         # return final_rewards.mean().numpy(), (T_open, travel_time)
 
 def save_model(model, fn="model"):
