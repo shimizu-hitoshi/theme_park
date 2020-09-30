@@ -147,7 +147,7 @@ class SimEnv(gym.Env):
         # self.dict_action = {}
         # for action in list( self.actions ):
         #     self.dict_action[]
-        self.flg_reward = config['TRAINING']['flg_reward']
+        # self.flg_reward = config['TRAINING']['flg_reward']
 
         # self.flag = True
         self.num_attractions = 5
@@ -159,12 +159,12 @@ class SimEnv(gym.Env):
         # self.num_edges = self.edges.num_obsv_edge
         # self.num_goals = self.edges.num_obsv_goal
         # self.num_navi = len(self.actions) * len(self.actions) # 誘導の状態数は，ワンホットベクトルを想定
-        self.navi_state = np.zeros(len(self.actions) * len(self.actions), dtype=float) # 入れ物だけ作っておく
+        # self.navi_state = np.zeros(len(self.actions) * len(self.actions), dtype=float) # 入れ物だけ作っておく
         # self.navi_state = np.zeros((3* 3), dtype=float) # 入れ物だけ作っておく
         # self.num_navi = 3 * 3 # 誘導の状態数は，ワンホットベクトルを想定
         # self.navi_state = np.zeros(len(self.actions) * len(self.agents), dtype=float) # 入れ物だけ作っておく
         # self.num_obsv = self.num_edges + self.num_goals # １ステップ分の観測の数
-        if DEBUG: print("self.navi_state.shape", self.navi_state.shape)
+        # if DEBUG: print("self.navi_state.shape", self.navi_state.shape)
         # self.num_obsv = self.num_edges + self.num_goals + self.num_navi # １ステップ分の観測の数
         # self.num_obsv = self.num_attractions + self.num_navi
         self.num_obsv = self.num_attractions + 7
@@ -219,21 +219,25 @@ class SimEnv(gym.Env):
 
     def _get_reward(self):# based on surplus
         print("max_step", self.max_step, "num_step", self.num_step)
-        if self.travel_open is None:
-            return 0
-        if self.max_step > self.num_step:
-            return 0 # reward only last step
-        agentid, travel_time = self._goal_time_all()
-        # print(agentid, travel_time)
-        # if len(agentid) == 0:
+        # if self.travel_open is None:
         #     return 0
-        if len(agentid) != self.num_agents:
-            return -1
-        reward = np.sum( self.travel_open[agentid] - travel_time ) / np.sum( self.travel_open[agentid] )
-        # reward = np.sum( self.T_open[agentid] - travel_time ) / np.sum( self.T_open[agentid] )
-        if reward < 0:
-            return max(reward, -1)
-        return min(reward, 1)
+        if self.max_step > self.num_step+1:
+            return 0 # reward only last step
+        else:
+            surplus = self.park.evaluate()
+            reward = (surplus - self.travel_open) / self.travel_open
+            return reward # 上限を1にしなくてもよいかも
+        # agentid, travel_time = self._goal_time_all()
+        # # print(agentid, travel_time)
+        # # if len(agentid) == 0:
+        # #     return 0
+        # if len(agentid) != self.num_agents:
+        #     return -1
+        # reward = np.sum( self.travel_open[agentid] - travel_time ) / np.sum( self.travel_open[agentid] )
+        # # reward = np.sum( self.T_open[agentid] - travel_time ) / np.sum( self.T_open[agentid] )
+        # if reward < 0:
+        #     return max(reward, -1)
+        # return min(reward, 1)
 
 
 
@@ -274,11 +278,11 @@ class SimEnv(gym.Env):
         print("cur_obs",cur_obs)
         return np.append(obs, cur_obs) # 右端に追加
 
-    def set_datadir(self, datadir):
-        self.datadir = datadir
-        agentfn    = os.path.dirname(os.path.abspath(__file__)) + "/../%s/agentlist.txt"%self.datadir
-        # self.speed = self.get_speed(agentfn)
-        self.num_agents = self.get_num_agents(agentfn)
+    # def set_datadir(self, datadir):
+    #     self.datadir = datadir
+    #     agentfn    = os.path.dirname(os.path.abspath(__file__)) + "/../%s/agentlist.txt"%self.datadir
+    #     # self.speed = self.get_speed(agentfn)
+    #     self.num_agents = self.get_num_agents(agentfn)
 
     def set_resdir(self, resdir):
         # print(resdir)

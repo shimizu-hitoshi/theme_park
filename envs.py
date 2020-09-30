@@ -206,7 +206,8 @@ class Environment:
         rollout.observations[0].copy_(current_obs)
 
         while True:
-            for step in range(self.NUM_ADVANCED_STEP):
+            # for step in range(self.NUM_ADVANCED_STEP):
+            for step in range(self.max_step):
                 print("step", step)
                 with torch.no_grad():
                     # action = actor_critic.act(rollouts.observations[step]) # ここでアクション決めて
