@@ -49,11 +49,11 @@ parser.add_argument('--cuda', action='store_true',
 if __name__ == '__main__':
     args = parser.parse_args()
 
-#     env = Environment(args)
-#     env.train()
+    env = Environment(args, flg_test=False)
+    env.train()
 
-    env = Environment(args, flg_test=True)
-    env.test()
+#     env = Environment(args, flg_test=True)
+#     env.test()
 
 
     """

@@ -16,7 +16,8 @@ import random
 
 flg_log = True # False
 # flg_log = False # False # False
-flg_debug = False # True
+# DEBUG = False # True
+DEBUG = False # True
 
 eps = 10e-6
 
@@ -308,7 +309,7 @@ class SimPark:
         self.dependency = {}
         # self.dependency = dependency
         np.random.seed(0)    #config グループ作成など
-        self.nTime = 1           #現在時刻
+        self.nTime = 0 # 1           #現在時刻
 
         self.guests      = {}
         for i, d in enumerate(self.guest_json):
@@ -334,20 +335,20 @@ class SimPark:
         self.totalQueue = 0
         self.totalInpark = 0
 
-    def simulate(self):
-    # def simulate(self, dependency):
-        """
-        最初から最後までシミュレーションを実行する
-        """
-        # self.reset(dependency)
-        self.reset()
-        for t in range(1, self.max_iteration+1):
-            self.nTime = t
-            # print(self.nTime)
-            if len(self.dead) == self.N:
-                break
-            self.iterate()
-            self.appendLog()
+    # def simulate(self):
+    # # def simulate(self, dependency):
+    #     """
+    #     最初から最後までシミュレーションを実行する
+    #     """
+    #     # self.reset(dependency)
+    #     self.reset()
+    #     for t in range(1, self.max_iteration+1):
+    #         self.nTime = t
+    #         # print(self.nTime)
+    #         if len(self.dead) == self.N:
+    #             break
+    #         self.iterate()
+    #         self.appendLog()
 
     def set_restriction(self, action):
         """
@@ -363,16 +364,18 @@ class SimPark:
     def step(self, interval):
         for t in range(interval):
             self.iterate()
+            self.nTime += 1
         return None
 
     def iterate(self):
+        if DEBUG: print("iterate")
         self.active.extend([g for g in self.born if self.guests[g].born <= self.nTime ])
         self.born = [g for g in self.born if not self.guests[g].born <= self.nTime ]
-    
+        if DEBUG: print(self.born)
         #アトラクション更新
         for a in self.attractions:
             self.ride = self.attractions[a].update(self.guests, self.ride, self.max_iteration, self.nTime)
-#        print(ride)
+        if DEBUG: print(self.ride)
     
         #待機状態の人をアクティブに
         for g in self.wait:
@@ -380,7 +383,7 @@ class SimPark:
             if(self.guests[g].wait <=0):
                 self.active.append(g)
         self.wait    = [g for g in self.wait if self.guests[g].wait>0]
-        
+        if DEBUG: print(self.wait)        
         #移動状態の人の処理
         # random.shuffle(self.move)
         # np.random.shuffle(self.move)

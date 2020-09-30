@@ -131,9 +131,9 @@ class Environment:
         self.config = config
         # config.read('config.ini')
         self.sim_time  = config.getint('SIMULATION', 'sim_time')
-        # self.interval  = config.getint('SIMULATION', 'interval')
-        # self.max_step  = int( np.ceil( self.sim_time / self.interval ))
-        self.max_step  = self.sim_time
+        self.interval  = config.getint('SIMULATION', 'interval')
+        self.max_step  = int( np.ceil( self.sim_time / self.interval ))
+        # self.max_step  = self.sim_time
         # self.loop_i = loop_i
         # NUM_PROCESSES     = config.getint('TRAINING', 'num_processes')
         if flg_test:
@@ -181,6 +181,7 @@ class Environment:
     #     self.envs.set_R_base(R_base)
 
     def train(self):
+        self.NUM_AGENTS = 1
         # self.NUM_AGENTS = len(dict_model)
         # print("train", dict_model)
         # actor_critics = []
@@ -206,19 +207,22 @@ class Environment:
 
         while True:
             for step in range(self.NUM_ADVANCED_STEP):
+                print("step", step)
                 with torch.no_grad():
                     # action = actor_critic.act(rollouts.observations[step]) # ここでアクション決めて
                     action = torch.zeros(self.NUM_PARALLEL, self.NUM_AGENTS).long().to(self.device) # 各観測に対する，各エージェントの行動
                     if DEBUG: print("actionサイズ",self.NUM_PARALLEL, self.NUM_AGENTS)
-                    for i, (k,v) in enumerate( dict_model.items() ):
-                        if k == training_target:
-                            tmp_action = v.act(current_obs)
-                            target_action = copy.deepcopy(tmp_action)
-                        else:
-                            tmp_action = v.act_greedy(current_obs)
-                        action[:,i] = tmp_action.squeeze()
+                    # for i, (k,v) in enumerate( dict_model.items() ):
+                    #     if k == training_target:
+                    #         tmp_action = v.act(current_obs)
+                    #         target_action = copy.deepcopy(tmp_action)
+                    #     else:
+                    #         tmp_action = v.act_greedy(current_obs)
+                    #     action[:,i] = tmp_action.squeeze()
+                    action = actor_critic.act(obs)
                 if DEBUG: print("step前のここ？",action.shape)
                 obs, reward, done, infos = self.envs.step(action) # これで時間を進める
+                print("reward(train)", reward)
                 episode_rewards += reward
 
                 # if done then clean the history of observation
@@ -229,8 +233,8 @@ class Environment:
                 with open(self.resdir + "/episode_reward.txt", "a") as f:
                     for i, info in enumerate(infos):
                         if 'episode' in info:
-                            f.write("{:}\t{:}\t{:}\t{:}\n".format(training_target,episode[i], info['env_id'], info['episode']['r']))
-                            print(training_target, episode[i], info['env_id'], info['episode']['r'])
+                            f.write("{:}\t{:}\t{:}\n".format(episode[i], info['env_id'], info['episode']['r']))
+                            print(episode[i], info['env_id'], info['episode']['r'])
                             episode[i] += 1
 
                 final_rewards *= masks
@@ -241,10 +245,10 @@ class Environment:
 
                 current_obs = obs # ここで観測を更新している
 
-                rollout.insert(current_obs, target_action.data, reward, masks, self.NUM_ADVANCED_STEP)
+                rollout.insert(current_obs, action.data, reward, masks, self.NUM_ADVANCED_STEP)
                 with open(self.resdir + "/reward_log.txt", "a") as f: # このログはエピソードが終わったときだけでいい->要修正
-                    f.write("{:}\t{:}\t{:}\t{:}\t{:}\t{:}\t{:}\t{:}\t{:}\t{:}\n".format(self.loop_i,training_target, episode.mean(), step, reward.max().numpy(), reward.min().numpy(), reward.mean().numpy(), episode_rewards.max().numpy(), episode_rewards.min().numpy(), episode_rewards.mean().numpy()))
-                    print(self.loop_i,training_target, episode.mean(), step, reward.mean().numpy(), episode_rewards.mean().numpy())
+                    f.write("{:}\t{:}\t{:}\t{:}\t{:}\t{:}\t{:}\t{:}\n".format(episode.mean(), step, reward.max().numpy(), reward.min().numpy(), reward.mean().numpy(), episode_rewards.max().numpy(), episode_rewards.min().numpy(), episode_rewards.mean().numpy()))
+                    print(episode.mean(), step, reward.mean().numpy(), episode_rewards.mean().numpy())
 
             with torch.no_grad():
                 next_value = actor_critic.get_value(rollout.observations[-1]).detach()
@@ -253,7 +257,7 @@ class Environment:
             value_loss, action_loss, total_loss, entropy = global_brain.update(rollout)
 
             with open(self.resdir + "/loss_log.txt", "a") as f:
-                f.write("{:}\t{:}\t{:}\t{:}\t{:}\t{:}\t{:}\n".format(self.loop_i, training_target, episode.mean(), value_loss, action_loss, entropy, total_loss))
+                f.write("{:}\t{:}\t{:}\t{:}\t{:}\n".format(episode.mean(), value_loss, action_loss, entropy, total_loss))
                 print("value_loss {:.4f}\taction_loss {:.4f}\tentropy {:.4f}\ttotal_loss {:.4f}".format(value_loss, action_loss, entropy, total_loss))
 
             rollout.after_update()
@@ -261,10 +265,12 @@ class Environment:
             if int(episode.mean())+1 > self.NUM_EPISODES:
                 # print("ループ抜ける")
                 break
+            obs = self.envs.reset()
+
         # ここでベストなモデルを保存していた（備忘）
-        print("%s番目のエージェントのtrain終了"%training_target)
-        dict_model[training_target] = actor_critic # {}
-        return dict_model
+        # print("%s番目のエージェントのtrain終了"%training_target)
+        # dict_model[training_target] = actor_critic # {}
+        return actor_critic
 
     def test(self, model=None): # 1並列を想定する
         # self.NUM_AGENTS = len(dict_model)
@@ -298,7 +304,7 @@ class Environment:
                 #     # print(actor_critic.__class__.__name__)
                 #     tmp_action = actor_critic.act_greedy(obs) # ここでアクション決めて
                 #     action[:,i] = tmp_action.squeeze()
-                print("step",step, "action",action)
+                print("step",step, "obs",obs, "action",action)
             obs, reward, done, infos = self.envs.step(action) # これで時間を進める
             # episode_rewards += reward
             T_open.append(reward.item())

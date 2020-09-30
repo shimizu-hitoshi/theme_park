@@ -12,7 +12,7 @@ sys.path.append('../')
 import copy
 from myenv.sim_park import SimPark
 
-DEBUG = False # True # False # True # False
+DEBUG = True # False # True # False # True # False
 
 class SimEnv(gym.Env):
     metadata = {'render.modes': ['human']}
@@ -28,28 +28,6 @@ class SimEnv(gym.Env):
 
         # if len(self.agents) == 1: # エージェント数が1だとスカラーになってエラー->暫定対処
         #     action = action.reshape(-1,1)
-
-        # 他の避難所の行動を決定するコードを書く
-        # dict_actions = {} # key:ノードID, value:ノードID
-        # self.tmp_action_matrix = np.zeros(( len(self.agents),len(self.actions)), dtype=float)
-        # # for i, node_id in enumerate( self.agents): # エージェントの行動
-        #     # print("ここでtmp_action_matrixに代入する")
-        #     # print("action.shape", action.shape)
-        #     dict_actions[node_id] = self._get_action(action[i])
-        #     self.tmp_action_matrix[i, action[i]] = 1.
-        # for shelter_id, node_id in enumerate( self.actions ): # エージェントではない避難所の行動
-        #     if node_id in self.agents: # self.sidの代入と更新タイミングに注意
-        #         continue
-        #     _action = self.others[shelter_id].get_action(self.goal_state)
-        #     dict_actions[node_id] = self._get_action(_action)
-        #     # # for other in self.others:
-        #     #     # if shelter_id == self.sid: # self.sidの代入と更新タイミングに注意
-        #     #     if node_id == self.sid: # self.sidの代入と更新タイミングに注意
-        #     #         # 自エージェントのactionだけ下で上書き
-        #     #         dict_actions[node_id] = self._get_action(action)
-        #     #     else:
-        #     #         _action = self.others[shelter_id].get_action(self.goal_state)
-        #     #         dict_actions[node_id] = self._get_action(_action)
 
         _action = self._get_action(action)
         self.park.set_restriction(_action)
@@ -70,7 +48,7 @@ class SimEnv(gym.Env):
         # sum_pop = np.sum(self.edge_state) * self.interval / self.num_agents # 累積すると平均移動時間
 
         reward = self._get_reward()
-
+        print("reward",reward)
         # self.episode_reward += sum_pop
         self.episode_reward += reward
         # print("CURRENT", self.cur_time, action, sum_pop, self.T_open[self.num_step], reward, self.episode_reward)
@@ -100,11 +78,11 @@ class SimEnv(gym.Env):
     def reset(self):
         # config = configparser.ConfigParser()
         # config.read('config.ini')
-
+        if DEBUG: print("reset")
         self.sim_time  = self.config.getint('SIMULATION', 'sim_time')
         self.interval  = self.config.getint('SIMULATION', 'interval')
-        # self.max_step  = int( np.ceil( self.sim_time / self.interval ))
-        self.max_step = self.sim_time
+        self.max_step  = int( np.ceil( self.sim_time / self.interval ))
+        # self.max_step = self.sim_time
         self.cur_time  = 0
         self.num_step  = 0
         self.state     = np.zeros(self.num_obsv * self.obs_step)
@@ -240,9 +218,10 @@ class SimEnv(gym.Env):
         return self.actions[action,:]
 
     def _get_reward(self):# based on surplus
+        print("max_step", self.max_step, "num_step", self.num_step)
         if self.travel_open is None:
             return 0
-        if self.max_step > self.num_step + 1:
+        if self.max_step > self.num_step:
             return 0 # reward only last step
         agentid, travel_time = self._goal_time_all()
         # print(agentid, travel_time)
@@ -292,6 +271,7 @@ class SimEnv(gym.Env):
         # cur_obs = np.append(self.edge_state , self.goal_state )
         # cur_obs = np.append(cur_obs , self.navi_state )
         cur_obs = self.park._get_state()
+        print("cur_obs",cur_obs)
         return np.append(obs, cur_obs) # 右端に追加
 
     def set_datadir(self, datadir):
