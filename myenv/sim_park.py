@@ -316,6 +316,7 @@ class SimPark:
             g   = Guest(d)
             self.guests[g.idx] = g
         self.N = len(self.guests)
+        self.M = len(self.attractions)
         self.LogQueue = LogWriter(self.logdir+"/queue_length.csv")
         self.LogQueue.addHeader(self.attractions)
         self.LogWait = LogWriter(self.logdir+"/wait_time.csv")
