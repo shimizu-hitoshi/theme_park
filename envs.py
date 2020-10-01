@@ -66,7 +66,8 @@ class Environment:
         # print(args.env_name, args.seed, self.NUM_PARALLEL, self.device, self.datadirs[0], config, R_base)
         # self.envs = make_vec_envs(args.env_name, args.seed, self.NUM_PARALLEL, self.device, self.datadirs[0], config, R_base)
         # self.envs = make_vec_envs(args.env_name, args.seed, self.NUM_PARALLEL, self.device, self.datadirs[0], config)
-        self.envs = make_vec_envs(args.env_name, args.seed, self.NUM_PARALLEL, self.device, self.datadirs[0], config, S_open)
+        # self.envs = make_vec_envs(args.env_name, args.seed, self.NUM_PARALLEL, self.device, self.datadirs[0], config, S_open)
+        self.envs = make_vec_envs(args.env_name, args.seed, self.NUM_PARALLEL, self.device, self.datadirs[-1], config, S_open)
         self.n_in  = self.envs.observation_space.shape[0]
         self.n_out = self.envs.action_space.n
         self.obs_shape       = self.n_in

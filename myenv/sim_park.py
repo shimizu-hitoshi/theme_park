@@ -307,6 +307,7 @@ class SimPark:
     # def reset(self, dependency):
     def reset(self):
         self.dependency = {}
+        self.enterance_restriction = False # 入園規制フラグ<-set_restrictionで設定
         # self.dependency = dependency
         np.random.seed(0)    #config グループ作成など
         self.nTime = 0 # 1           #現在時刻
@@ -353,13 +354,14 @@ class SimPark:
 
     def set_restriction(self, action):
         """
-        後で実装
+        後で単体テスト
         """
         self.dependency = []
         # self.action = action
-        for i, a in enumerate(action):
+        for i, a in enumerate(action[:-1]):
             if a == 1:
                 self.dependency.append(i+1) # アトラクションIDは1はじまり
+        self.enterance_restriction = (action[-1] == 1) # True or False
         return None
 
     def step(self, interval):
@@ -370,8 +372,9 @@ class SimPark:
 
     def iterate(self):
         if DEBUG: print("iterate")
-        self.active.extend([g for g in self.born if self.guests[g].born <= self.nTime ])
-        self.born = [g for g in self.born if not self.guests[g].born <= self.nTime ]
+        if not self.enterance_restriction: # 入場規制がないときだけ，bornからactiveに移す
+            self.active.extend([g for g in self.born if self.guests[g].born <= self.nTime ])
+            self.born = [g for g in self.born if not self.guests[g].born <= self.nTime ]
         if DEBUG: print(self.born)
         #アトラクション更新
         for a in self.attractions:
