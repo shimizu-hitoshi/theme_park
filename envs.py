@@ -2,6 +2,7 @@ import gym
 import torch
 import copy
 from model import ActorCritic
+from open import AlwaysOpen
 from brain import Brain
 from storage import RolloutStorage
 # from controler import FixControler
@@ -21,6 +22,7 @@ class Environment:
     def __init__(self, args, flg_test=False, S_open=None):
         config = configparser.ConfigParser()
         config.read(args.configfn)
+        self.args = args
         self.config = config
         # config.read('config.ini')
         self.sim_time  = config.getint('SIMULATION', 'sim_time')
@@ -44,13 +46,13 @@ class Environment:
         self.NUM_EPISODES      = config.getint('TRAINING', 'num_episodes')
         # outputfn = config['TRAINING']['outputfn'] # model file name
         self.gamma = float( config['TRAINING']['gamma'] )
-        # self.datadirs = []
-        self.datadirs = sorted( glob.glob("data/beta/N*it0") )
-        
-        # with open(config['SIMULATION']['datadirlistfn']) as fp:
-        #     for line in fp:
-        #         datadir = line.strip()
-        #         self.datadirs.append(datadir)
+
+        self.datadirs = []
+        # self.datadirs = sorted( glob.glob("data/beta/N*it0") )        
+        with open(config['SIMULATION']['datadirlistfn']) as fp:
+            for line in fp:
+                datadir = line.strip()
+                self.datadirs.append(datadir)
         # training_targets = list( np.loadtxt( config['TRAINING']['training_target'] , dtype=int ) )
         # これを引数で指定
         # self.NUM_PROCESSES = NUM_PARALLEL * NUM_AGENTS
@@ -67,7 +69,7 @@ class Environment:
         # self.envs = make_vec_envs(args.env_name, args.seed, self.NUM_PARALLEL, self.device, self.datadirs[0], config, R_base)
         # self.envs = make_vec_envs(args.env_name, args.seed, self.NUM_PARALLEL, self.device, self.datadirs[0], config)
         # self.envs = make_vec_envs(args.env_name, args.seed, self.NUM_PARALLEL, self.device, self.datadirs[0], config, S_open)
-        self.envs = make_vec_envs(args.env_name, args.seed, self.NUM_PARALLEL, self.device, self.datadirs[-1], config, S_open)
+        self.envs = make_vec_envs(args.env_name, args.seed, self.NUM_PARALLEL, self.device, self.datadirs, config, S_open)
         self.n_in  = self.envs.observation_space.shape[0]
         self.n_out = self.envs.action_space.n
         self.obs_shape       = self.n_in
@@ -163,6 +165,8 @@ class Environment:
                 break
             obs = self.envs.reset()
 
+        if self.args.save:
+            save_model(actor_critic, self.resdir + "/model")
         # ここでベストなモデルを保存していた（備忘）
         # print("%s番目のエージェントのtrain終了"%training_target)
         # dict_model[training_target] = actor_critic # {}
@@ -179,17 +183,18 @@ class Environment:
         if model is not None:
             actor_critic = model
         else:
-            actor_critic = ActorCritic(self.n_in, self.n_out)
+            # actor_critic = ActorCritic(self.n_in, self.n_out)
+            actor_critic = AlwaysOpen(self.n_in, self.n_out)
 
-        current_obs     = torch.zeros(self.NUM_PARALLEL, self.obs_shape).to(self.device)
-        episode_rewards = torch.zeros([self.NUM_PARALLEL, 1])
-        final_rewards   = torch.zeros([self.NUM_PARALLEL, 1])
+        # current_obs     = torch.zeros(self.NUM_PARALLEL, self.obs_shape).to(self.device)
+        # episode_rewards = torch.zeros([self.NUM_PARALLEL, 1])
+        # final_rewards   = torch.zeros([self.NUM_PARALLEL, 1])
 
         obs = self.envs.reset()
         obs = np.array(obs)
         obs = torch.from_numpy(obs).float()
         current_obs = obs
-        T_open = []
+        # T_open = []
         for step in range(self.max_step):
             with torch.no_grad():
                 # action = actor_critic.act(rollouts.observations[step]) # ここでアクション決めて

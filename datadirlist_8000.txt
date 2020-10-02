@@ -1,0 +1,16 @@
+data/beta/N7000it0
+data/beta/N7000it1
+data/beta/N7000it2
+data/beta/N7000it3
+data/beta/N7000it0
+data/beta/N7000it1
+data/beta/N7000it2
+data/beta/N7000it3
+data/beta/N7000it0
+data/beta/N7000it1
+data/beta/N7000it2
+data/beta/N7000it3
+data/beta/N7000it0
+data/beta/N7000it1
+data/beta/N7000it2
+data/beta/N7000it3

@@ -1,0 +1,17 @@
+data/beta/N9000it0
+data/beta/N1000it0
+data/beta/N2000it0
+data/beta/N3000it0
+data/beta/N4000it0
+data/beta/N5000it0
+data/beta/N6000it0
+data/beta/N7000it0
+data/beta/N8000it0
+data/beta/N1000it1
+data/beta/N2000it1
+data/beta/N3000it1
+data/beta/N4000it1
+data/beta/N5000it1
+data/beta/N6000it1
+data/beta/N7000it1
+data/beta/N8000it1

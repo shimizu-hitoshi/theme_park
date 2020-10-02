@@ -17,7 +17,7 @@ import random
 flg_log = True # False
 # flg_log = False # False # False
 # DEBUG = False # True
-DEBUG = False # True
+DEBUG = False # True # False # True
 
 eps = 10e-6
 
@@ -484,6 +484,7 @@ class SimPark:
 
     def evaluate(self):
         list_surplus = np.array( [ v.surplus for k,v in sorted( self.guests.items() )] )
+        if DEBUG: print(list_surplus)
         mean_surplus = np.mean(list_surplus)
         return mean_surplus
 

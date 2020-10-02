@@ -53,10 +53,10 @@ if __name__ == '__main__':
     S_open = env.test()
     print("誘導なし", S_open)
     env = Environment(args, flg_test=False, S_open=S_open)
-    env.train()
+    model = env.train()
 
     env = Environment(args, flg_test=True)
-    print(env.test())
+    print(env.test(model))
 
 
     """
