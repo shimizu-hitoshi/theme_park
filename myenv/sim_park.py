@@ -326,6 +326,8 @@ class SimPark:
         self.LogCount.addHeader(self.attractions)
         self.LogState = LogWriter(self.logdir+"/state.csv")
         self.LogState.addLine(["time", "no enter", "move", "queue", "ride", "wait", "exit"])
+        self.LogRestriction = LogWriter(self.logdir+"/restriction.csv")
+        self.LogState.addLine(["att1","att2","att3","att4","att5","ent"])
 
         self.born    = self.guests.keys()
         self.active  = []
@@ -356,17 +358,20 @@ class SimPark:
         """
         後で単体テスト
         """
-        self.dependency = []
+        self.restriction = action # 6次元のベクトル
+        self.dependency = [] # 各アトラクションの受付停止
         # self.action = action
         for i, a in enumerate(action[:-1]):
             if a == 1:
                 self.dependency.append(i+1) # アトラクションIDは1はじまり
+        # 入園規制
         self.enterance_restriction = (action[-1] == 1) # True or False
         return None
 
     def step(self, interval):
         for t in range(interval):
             self.iterate()
+            self.appendLog() # ログ出力しないならコメントアウトすること
             self.nTime += 1
         return None
 
@@ -475,12 +480,14 @@ class SimPark:
         self.LogCount.addLine(aCnt)
         self.LogState.addLine([self.nTime, len(self.born), len(self.move),cnt, len(self.ride), len(self.wait), len(self.dead)])
         # print( self.nTime, "no born", len(self.born), len(self.active), "wait", len(self.wait), "exit",len(self.dead), "queue", cnt, "move", len(self.move), "ride", len(self.ride) )
+        self.LogRestriction.addLine(self.restriction)
 
     def saveLog(self):
         self.LogQueue.save()
         self.LogWait.save()
         self.LogCount.save()
-        self.LogState.save()        
+        self.LogState.save()
+        self.LogRestriction.save()
 
     def evaluate(self):
         list_surplus = np.array( [ v.surplus for k,v in sorted( self.guests.items() )] )

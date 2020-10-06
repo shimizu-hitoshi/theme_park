@@ -16,7 +16,7 @@ import os, sys, glob
 # from edges import Edge
 import datetime
 
-DEBUG = False # True # False # True # False
+DEBUG = True # False # True # False # True # False
 
 class Environment:
     def __init__(self, args, flg_test=False, S_open=None):
@@ -118,6 +118,7 @@ class Environment:
                     #         tmp_action = v.act_greedy(current_obs)
                     #     action[:,i] = tmp_action.squeeze()
                     action = actor_critic.act(obs)
+                    if DEBUG: print("action",action)
                 if DEBUG: print("step前のここ？",action.shape)
                 obs, reward, done, infos = self.envs.step(action) # これで時間を進める
                 print("reward(train)", reward)
@@ -211,7 +212,7 @@ class Environment:
             # T_open.append(reward.item())
             # if done then clean the history of observation
             masks = torch.FloatTensor([[0.0] if done_ else [1.0] for done_ in done])
-            if DEBUG: print(masks)
+            if DEBUG: print("masks",masks)
             # テストのときは，rewardの保存は不要では？
             # if DEBUG: print("done.shape",done.shape)
             # if DEBUG: print("masks.shape",masks.shape)
@@ -223,17 +224,17 @@ class Environment:
             #             print(info['env_id'], info['episode']['r'])
 
             # イベント保存のためには，->要仕様検討
-            if 'events' in infos[0]: # test()では１並列前提
-                eventsfn = self.resdir + "/event.txt"
-                with open(eventsfn, "a") as f: 
-                    if DEBUG: print("{:}保存します".format(eventsfn))
-                    # for i, info in enumerate(infos):
-                    for event in infos[0]['events']:
-                        f.write("{:}\n".format(event))
-                        if DEBUG: print(event)
-                        # episode[i] += 1
-            if 'surplus' in infos[0]: # test()では１並列前提
-                surplus = infos[0]['surplus']
+        if 'events' in infos[0]: # test()では１並列前提
+            eventsfn = self.resdir + "/event.txt"
+            with open(eventsfn, "w") as f: 
+                if DEBUG: print("{:}保存します".format(eventsfn))
+                # for i, info in enumerate(infos):
+                for event in infos[0]['events']:
+                    f.write("{:}\n".format(event))
+                    if DEBUG: print(event)
+                    # episode[i] += 1
+        if 'surplus' in infos[0]: # test()では１並列前提
+            surplus = infos[0]['surplus']
 
             # final_rewards *= masks
             # final_rewards += (1-masks) * episode_rewards

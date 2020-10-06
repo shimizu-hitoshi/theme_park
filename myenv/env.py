@@ -12,13 +12,14 @@ sys.path.append('../')
 import copy
 from myenv.sim_park import SimPark
 
-DEBUG = False # True # False # True # False # True # False # True # False
+DEBUG = True # False # True # False # True # False # True # False # True # False
 
 class SimEnv(gym.Env):
     metadata = {'render.modes': ['human']}
     def __init__(self):
         super().__init__()
         self.reward_range = [-1., 1.]
+        self.flg_init = True
 
     def step(self, action): # これを呼ぶときには，actionは決定されている
         # self.state = self._get_state() # 1stepにつき冒頭と末尾に状態取得？
@@ -31,6 +32,7 @@ class SimEnv(gym.Env):
 
         _action = self._get_action(action)
         self.park.set_restriction(_action)
+        self.event_history.append(_action)
         self.park.step(self.interval)
         # self.call_traffic_regulation(_action, self.num_step)
         # print("dict_actions",dict_actions)
@@ -80,6 +82,10 @@ class SimEnv(gym.Env):
         return self.state, reward, done, info # obseration, reward, done, info
 
     def reset(self):
+        if self.flg_init:
+            self.flg_init = False
+        else: # 1回でも実行した後なら，それまでのログをファイル出力する
+            self.park.saveLog()
         # config = configparser.ConfigParser()
         # config.read('config.ini')
         if DEBUG: print("reset")
@@ -143,8 +149,7 @@ class SimEnv(gym.Env):
         self.obs_step   = config.getint('TRAINING',   'obs_step')
         # self.obs_degree   = config.getint('TRAINING',   'obs_degree')
         # self.datadir         = config.get('SIMULATION',    'datadir')
-        self.tmp_resdir = config['TRAINING']['resdir']
-        self.park.set_logdir(self.tmp_resdir )
+
         self.actions = np.loadtxt( config['SIMULATION']['actionfn'] , dtype=int )
         # self.agents = training_targets # = self.actions
         # self.agents = copy.deepcopy(self.actions)
@@ -207,7 +212,13 @@ class SimEnv(gym.Env):
         seeding.np_random(seed) 
         # self.set_datadir(self.datadir)
         # print(self.datadir)
-        self.set_resdir("%s/sim_result_%d"%(self.tmp_resdir, self.env_id))
+        self.tmp_resdir = config['TRAINING']['resdir']
+        tmp_sim_result = "%s/sim_result_%d"%(self.tmp_resdir, self.env_id) 
+        self.set_resdir(tmp_sim_result)
+        self.park.set_logdir(tmp_sim_result )
+
+        # self.park.set_logdir(self.tmp_resdir )
+
         # ルールベースの避難所のエージェントを生成する
         # self.others = {}
         # for shelter_id, node_id in enumerate( self.actions ):
