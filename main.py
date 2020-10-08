@@ -52,11 +52,12 @@ if __name__ == '__main__':
     env = Environment(args, flg_test=True)
     S_open = env.test()
     print("誘導なし", S_open)
-    env = Environment(args, flg_test=False, S_open=S_open)
-    model = env.train()
 
-    env = Environment(args, flg_test=True)
-    print(env.test(model))
+#     env = Environment(args, flg_test=False, S_open=S_open)
+#     model = env.train()
+
+#     env = Environment(args, flg_test=True)
+#     print(env.test(model))
 
 
     """

@@ -248,6 +248,7 @@ class Environment:
             #     print(step, reward.mean().numpy(), episode_rewards.mean().numpy())
             # 逆に，テスト結果をどこかに保存する必要がある
 
+        # self.envs.reset()
         print("ここでtest終了")
         # print(surplus)
         # return np.mean(travel_time), (T_open, travel_time)
